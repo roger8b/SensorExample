@@ -1,4 +1,4 @@
-package br.com.rms.sensorexemple
+package br.com.rms.sensorexample
 
 import android.support.test.InstrumentationRegistry
 import android.support.test.runner.AndroidJUnit4

@@ -1,4 +1,4 @@
-package br.com.rms.sensorexemple
+package br.com.rms.sensorexample
 
 import android.content.Context
 import android.hardware.Sensor
@@ -9,6 +9,9 @@ import android.os.Bundle
 import android.support.v7.app.AppCompatActivity
 import android.util.Log
 import android.view.Menu
+import android.view.animation.Animation
+import android.view.animation.DecelerateInterpolator
+import android.view.animation.RotateAnimation
 import io.reactivex.Observable
 import io.reactivex.android.schedulers.AndroidSchedulers
 import io.reactivex.schedulers.Schedulers
@@ -22,14 +25,10 @@ class Main2Activity : AppCompatActivity() {
     private var sensor: Sensor? = null
     private val accelerometerReading = FloatArray(3)
     private val magnetometerReading = FloatArray(3)
-    private val rotationMatrix = FloatArray(9)
-    private val orientationAngles = FloatArray(3)
     private var sensorEventListener: SensorEventListener? = null
+    private var toDegree: Int = 0
+    private var fromDegree: Int = 0
 
-    val UPSIDE_DOWN = 3
-    val LANDSCAPE_RIGHT = 4
-    val PORTRAIT = 1
-    val LANDSCAPE_LEFT = 2
     var mOrientationDeg: Int = 0 //last rotation in degrees
     var mOrientationRounded: Int = 0 //last orientation int from above
     private val _DATA_X = 0
@@ -41,6 +40,24 @@ class Main2Activity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main2)
 
+        verifySensor()
+    }
+
+    override fun onResume() {
+        super.onResume()
+        initSensor()
+    }
+
+    override fun onPause() {
+        super.onPause()
+    }
+
+    override fun onPanelClosed(featureId: Int, menu: Menu?) {
+        super.onPanelClosed(featureId, menu)
+        sensorManager.unregisterListener(sensorEventListener)
+    }
+
+    private fun verifySensor() {
         sensorManager = getSystemService(Context.SENSOR_SERVICE) as SensorManager
 
         val rotationMatrix = FloatArray(9)
@@ -53,12 +70,8 @@ class Main2Activity : AppCompatActivity() {
 
             private var tempOrientRounded: Int = 0
 
-
             override fun onSensorChanged(event: SensorEvent?) {
-
-
                 if (event != null) {
-                    Log.d("SENSOR_TEST", "Sensor Changed")
                     val values = event.values
                     var orientation = ORIENTATION_UNKNOWN
                     val X = -values[_DATA_X]
@@ -79,68 +92,32 @@ class Main2Activity : AppCompatActivity() {
                         }
                     }
 
-                    val subscription = Observable.interval(1000,5000, TimeUnit.MILLISECONDS)
-                        .subscribeOn(Schedulers.io())
-                        .observeOn(AndroidSchedulers.mainThread())
-                        .subscribe()
-                            Log.d("SENSOR_TEST", "" + orientation * -1)
-
-                            if (orientation != mOrientationDeg) {
-                                mOrientationDeg = orientation
-                                //figure out actual orientation
-                                if (orientation == -1) {//basically flat
-
-                                } else if (orientation <= 45 || orientation > 315) {//round to 0
-                                    tempOrientRounded = 1//portrait
-                                } else if (orientation > 45 && orientation <= 135) {//round to 90
-                                    tempOrientRounded = 2 //lsleft
-                                } else if (orientation > 135 && orientation <= 225) {//round to 180
-                                    tempOrientRounded = 3 //upside down
-                                } else if (orientation > 225 && orientation <= 315) {//round to 270
-                                    tempOrientRounded = 4//lsright
-                                }
-
-                            }
-
-                            if (mOrientationRounded !== tempOrientRounded) {
-                                //Orientation changed, handle the change here
-                                mOrientationRounded = tempOrientRounded
-                                var o = 0
-                                when (mOrientationRounded) {
-                                    1 -> {
-                                        img.rotation = 0f
-                                        o = 0
-                                    }
-                                    2 -> {
-                                        img.rotation = 90f
-                                        o = 90
-                                    }
-                                    3 -> {
-                                        img.rotation = 180f
-                                        o = 180
-                                    }
-                                    4 -> {
-                                        img.rotation = 270f
-                                        o = 270
-                                    }
-                                }
-                                Log.d("SENSOR_TEST", """Otientação $o""")
-
-                            }
-
-
+                    if (orientation != mOrientationDeg) {
+                        mOrientationDeg = orientation
+                        //figure out actual orientation
+                        //Log.d("SENSOR_TEST", """Orientação $mOrientationDeg""")
+                        if (orientation == -1) {//basically flat
+                        } else if (orientation <= 45 || orientation > 315) {//round to 0
+                            tempOrientRounded = 1//portrait
+                        } else if (orientation > 45 && orientation <= 135) {//round to -90
+                            tempOrientRounded = 2 //lsleft
+                        } else if (orientation > 135 && orientation <= 255) {//round to -180
+                            tempOrientRounded = 3 //upside down
+                        } else if (orientation > 255 && orientation <= 315) {//round to 90 // 270
+                            tempOrientRounded = 4//lsright
                         }
-
+                    }
+                }
+                if (mOrientationRounded !== tempOrientRounded) {
+                    //Orientation changed, handle the change here
+                    mOrientationRounded = tempOrientRounded
+                }
             }
         }
-
-
+        checkOrientation()
     }
 
-
-    override fun onResume() {
-        super.onResume()
-
+    private fun initSensor() {
         sensor = sensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER)?.also { accelerometer ->
             sensorManager.registerListener(
                 sensorEventListener,
@@ -159,9 +136,54 @@ class Main2Activity : AppCompatActivity() {
         }
     }
 
-    override fun onPanelClosed(featureId: Int, menu: Menu?) {
-        super.onPanelClosed(featureId, menu)
-
-        sensorManager.unregisterListener(sensorEventListener)
+    fun checkOrientation() {
+        val subscription = Observable.interval(1000, 4000, TimeUnit.MILLISECONDS)
+            .subscribeOn(Schedulers.io())
+            .observeOn(AndroidSchedulers.mainThread())
+            .subscribe {
+                when (mOrientationRounded) {
+                    1 -> {
+                        toDegree = 0
+                    }
+                    2 -> {
+                        toDegree = -90
+                    }
+                    3 -> {
+                        toDegree = -180
+                    }
+                    4 -> {
+                        toDegree = 90
+                    }
+                }
+                rotate()
+            }
     }
+
+    private fun rotate() {
+        if(fromDegree == 90 && toDegree == -180){
+            toDegree = 180
+        }else if (fromDegree == 180 && toDegree == -180){
+            toDegree = 180
+        }else if(fromDegree == -180 && toDegree == 180){
+            fromDegree = -180
+        }
+
+        Log.d("SENSOR_TEST", """Orientação De $fromDegree Para $toDegree""")
+        val rotateAnimation = RotateAnimation(
+            fromDegree.toFloat(),
+            toDegree.toFloat(),
+            Animation.RELATIVE_TO_SELF,
+            0.5f,
+            Animation.RELATIVE_TO_SELF,
+            0.5f)
+
+        rotateAnimation.duration = 500
+        rotateAnimation.startOffset = 0L
+        rotateAnimation.fillAfter = true
+        rotateAnimation.interpolator = DecelerateInterpolator()
+        img.startAnimation(rotateAnimation)
+        fromDegree = toDegree
+    }
+
+
 }

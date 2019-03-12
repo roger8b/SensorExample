@@ -1,4 +1,4 @@
-package br.com.rms.sensorexemple
+package br.com.rms.sensorexample
 
 import android.content.Context
 import android.hardware.Sensor
@@ -13,9 +13,7 @@ import io.reactivex.Observable
 import kotlin.math.round
 import io.reactivex.android.schedulers.AndroidSchedulers
 import io.reactivex.schedulers.Schedulers
-import org.reactivestreams.Subscription
 import java.util.concurrent.TimeUnit
-import java.util.function.Consumer
 
 
 class MainActivity : AppCompatActivity() {
